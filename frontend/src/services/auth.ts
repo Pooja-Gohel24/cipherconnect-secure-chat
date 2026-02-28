@@ -32,3 +32,21 @@ export async function getCurrentUser(accessToken: string): Promise<UserProfile> 
   });
   return data;
 }
+
+export interface UpdateProfilePayload {
+  profile_picture_url?: string | null;
+  bio?: string | null;
+  status?: string | null;
+  public_key?: string | null;
+  encrypted_private_key?: string | null;
+}
+
+export async function updateUserProfile(
+  payload: UpdateProfilePayload,
+  accessToken: string
+): Promise<UserProfile> {
+  const { data } = await api.patch<UserProfile>("/api/users/me", payload, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return data;
+}
