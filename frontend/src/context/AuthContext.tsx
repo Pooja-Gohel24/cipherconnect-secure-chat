@@ -12,6 +12,7 @@ interface AuthContextValue {
   register: (payload: RegisterPayload) => Promise<void>;
   login: (payload: LoginPayload) => Promise<void>;
   logout: () => Promise<void>;
+  setUser: (user: UserProfile | null) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -85,7 +86,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const value = useMemo<AuthContextValue>(
+const value = useMemo<AuthContextValue>(
     () => ({
       user,
       accessToken,
@@ -94,6 +95,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       register,
       login,
       logout,
+      setUser,
     }),
     [user, accessToken, refreshToken, loading]
   );
