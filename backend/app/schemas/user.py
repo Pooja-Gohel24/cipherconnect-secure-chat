@@ -25,6 +25,8 @@ class UserUpdateRequest(BaseModel):
     profile_picture_url: str | None = None
     bio: str | None = None
     status: str | None = None
+    public_key: str | None = None
+    encrypted_private_key: str | None = None
 
 
 class UserRoleUpdateRequest(BaseModel):

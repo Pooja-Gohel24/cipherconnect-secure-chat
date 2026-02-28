@@ -34,6 +34,10 @@ def update_me(
         current_user.bio = payload.bio
     if payload.status is not None:
         current_user.status = payload.status
+    if payload.public_key is not None:
+        current_user.public_key = payload.public_key
+    if payload.encrypted_private_key is not None:
+        current_user.encrypted_private_key = payload.encrypted_private_key
     current_user.last_seen = datetime.utcnow()
 
     db.commit()
