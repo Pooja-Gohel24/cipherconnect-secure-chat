@@ -1,3 +1,4 @@
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 
 from app.core.security import create_access_token, create_refresh_token, hash_password, verify_password
@@ -39,6 +40,12 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
         return None
     if not verify_password(password, user.password_hash):
         return None
+    
+    # Update last_seen in IST (India Standard Time = UTC+5:30)
+    ist = timezone(timedelta(hours=5, minutes=30))
+    user.last_seen = datetime.now(ist)
+    db.commit()
+    
     return user
 
 

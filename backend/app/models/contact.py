@@ -17,3 +17,4 @@ class Contact(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     user = relationship("User", foreign_keys=[user_id], back_populates="contacts")
+    contact_user = relationship("User", foreign_keys=[contact_user_id])

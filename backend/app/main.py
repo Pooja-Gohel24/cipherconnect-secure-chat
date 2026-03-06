@@ -4,7 +4,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import admin, auth, chat, group, users
 from app.core.config import settings
 
-app = FastAPI(title="CipherConnect API", version="0.1.0")
+app = FastAPI(
+    title="CipherConnect API", 
+    version="0.1.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.FRONTEND_ORIGINS,
