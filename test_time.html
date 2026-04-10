@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Time Test</title>
+</head>
+<body>
+    <h1>Time Formatting Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        function formatTime(dateString) {
+            const date = new Date(dateString);
+            // Convert to India timezone (UTC+5:30)
+            const indiaTime = new Date(date.getTime() + (5.5 * 60 * 60 * 1000));
+            return indiaTime.toLocaleTimeString('en-IN', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                hour12: true
+            });
+        }
+        
+        const now = new Date().toISOString();
+        const currentTime = new Date();
+        const indiaTime = new Date(currentTime.getTime() + (5.5 * 60 * 60 * 1000));
+        
+        document.getElementById('results').innerHTML = `
+            <p><strong>Current UTC Time:</strong> ${now}</p>
+            <p><strong>Current Local Time:</strong> ${currentTime.toLocaleTimeString()}</p>
+            <p><strong>India Time (Manual):</strong> ${indiaTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</p>
+            <p><strong>Formatted Time:</strong> ${formatTime(now)}</p>
+            <p><strong>Current Hour (Local):</strong> ${currentTime.getHours()}</p>
+            <p><strong>Current Hour (India):</strong> ${indiaTime.getHours()}</p>
+        `;
+    </script>
+</body>
+</html>

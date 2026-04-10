@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 export default function LoginPage() {
@@ -10,6 +10,14 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const successMessage = location.state?.message || '';
+  
+  useEffect(() => {
+    if (successMessage) {
+      window.history.replaceState({}, document.title);
+    }
+  }, [successMessage]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +37,14 @@ export default function LoginPage() {
       navigate('/dashboard');
     } catch (err: any) {
       setLoading(false);
-      setError(err.response?.data?.detail || 'Login failed');
+      const errorDetail = err.response?.data?.detail || 'Login failed';
+      
+      if (err.response?.status === 403) {
+        navigate('/verify-otp', { state: { email, fromLogin: true } });
+        return;
+      }
+      
+      setError(errorDetail);
     }
   };
 
@@ -45,6 +60,12 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+          {successMessage && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-sm text-green-600">{successMessage}</p>
+            </div>
+          )}
+          
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-600">{error}</p>
@@ -56,6 +77,8 @@ export default function LoginPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">Email address</label>
               <input
                 type="email"
+                name="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4a154b] focus:border-transparent outline-none transition-all"
@@ -69,6 +92,8 @@ export default function LoginPage() {
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4a154b] focus:border-transparent outline-none transition-all"

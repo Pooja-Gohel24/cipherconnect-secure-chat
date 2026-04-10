@@ -33,3 +33,4 @@ class ConversationParticipant(Base):
     is_muted = Column(Boolean, nullable=False, default=False)
 
     conversation = relationship("Conversation", back_populates="participants")
+    user = relationship("User")

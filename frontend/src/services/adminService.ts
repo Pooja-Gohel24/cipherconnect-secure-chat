@@ -1,25 +1,19 @@
 import api from './api';
 
-export interface ReportCreate {
-  conversation_id?: string;
-  reported_user?: string;
-  reason: string;
-}
-
-export interface RoleUpdate {
-  role: 'user' | 'admin' | 'superadmin';
-}
-
 export const adminService = {
-  createReport: (data: ReportCreate, token: string) => 
-    api.post('/api/admin/reports', data, { headers: { Authorization: `Bearer ${token}` } }),
-  
-  listReports: (token: string) => 
-    api.get('/api/admin/reports', { headers: { Authorization: `Bearer ${token}` } }),
-  
-  listAuditLogs: (token: string) => 
-    api.get('/api/admin/audit-logs', { headers: { Authorization: `Bearer ${token}` } }),
-  
-  updateUserRole: (userId: string, data: RoleUpdate, token: string) => 
-    api.patch(`/api/admin/users/${userId}/role`, data, { headers: { Authorization: `Bearer ${token}` } }),
+  getDashboardStats: () => api.get('/api/admin/dashboard-stats'),
+  getAllUsers: () => api.get('/api/admin/users'),
+  deleteUser: (userId: string) => api.delete(`/api/admin/users/${userId}`),
+  updateUserStatus: (userId: string, status: string) =>
+    api.patch(`/api/admin/users/${userId}/status?status=${status}`),
+  updateUserRole: (userId: string, role: string) =>
+    api.patch(`/api/admin/users/${userId}/role`, { role }),
+  verifyUser: (userId: string) =>
+    api.patch(`/api/admin/users/${userId}/verify`),
+  getReports: () => api.get('/api/admin/reports'),
+  resolveReport: (reportId: string, status: 'resolved' | 'dismissed') =>
+    api.patch(`/api/admin/reports/${reportId}`, { status }),
+  getAuditLogs: () => api.get('/api/admin/audit-logs'),
+  getConversations: () => api.get('/api/admin/conversations'),
+  deleteConversation: (convId: string) => api.delete(`/api/admin/conversations/${convId}`),
 };

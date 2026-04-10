@@ -75,19 +75,14 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const token = localStorage.getItem('access_token') || '';
 
   useEffect(() => {
-    if (!token) {
-      navigate('/login');
-      return;
-    }
     loadProfile();
   }, []);
 
   const loadProfile = async () => {
     try {
-      const res = await userService.getMe(token);
+      const res = await userService.getMe();
       setUser(res.data);
       setBio(res.data.bio || '');
       setStatus(res.data.status || 'online');
@@ -137,7 +132,7 @@ export default function ProfilePage() {
     }
   };
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = async (file: File) => {
     // Validate file type
     if (!file.type.startsWith('image/')) {
       setError("Please select an image file");
@@ -150,10 +145,16 @@ export default function ProfilePage() {
       return;
     }
 
-    // Create a URL for the uploaded file
-    const imageUrl = URL.createObjectURL(file);
-    setProfilePictureUrl(imageUrl);
-    setError("");
+    // Upload the file
+    try {
+      setError('');
+      const response = await userService.uploadProfilePicture(file);
+      setProfilePictureUrl(response.data.profile_picture_url);
+      setSuccess('Profile picture uploaded successfully!');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to upload image. Please try again.');
+      console.error('Upload error:', err);
+    }
   };
 
   const handleRemoveImage = () => {
@@ -173,7 +174,7 @@ export default function ProfilePage() {
         bio, 
         status,
         profile_picture_url: profilePictureUrl || null
-      }, token);
+      });
       setSuccess('Profile updated successfully!');
       setEditing(false);
       loadProfile();
@@ -205,7 +206,7 @@ export default function ProfilePage() {
                 <div className="w-32 h-32 bg-white rounded-lg border-4 border-white shadow-lg flex items-center justify-center overflow-hidden">
                   {profilePictureUrl ? (
                     <img 
-                      src={profilePictureUrl} 
+                      src={profilePictureUrl.startsWith('/') ? `http://127.0.0.1:8000${profilePictureUrl}` : profilePictureUrl} 
                       alt="Profile" 
                       className="w-full h-full object-cover"
                       onError={(e) => {
@@ -270,7 +271,7 @@ export default function ProfilePage() {
                         {profilePictureUrl ? (
                           <div className="relative">
                             <img
-                              src={profilePictureUrl}
+                              src={profilePictureUrl.startsWith('/') ? `http://127.0.0.1:8000${profilePictureUrl}` : profilePictureUrl}
                               alt="Preview"
                               className="h-24 w-24 rounded-full object-cover border-2 border-gray-200"
                               onError={(e) => {

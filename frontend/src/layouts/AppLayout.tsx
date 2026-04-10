@@ -44,6 +44,7 @@ export default function AppLayout() {
                 <Link to="/chat" className="px-3 py-2 text-white hover:bg-[#611f69] rounded text-sm font-medium">Messages</Link>
                 <Link to="/contacts" className="px-3 py-2 text-white hover:bg-[#611f69] rounded text-sm font-medium">Contacts</Link>
                 <Link to="/groups" className="px-3 py-2 text-white hover:bg-[#611f69] rounded text-sm font-medium">Groups</Link>
+                <Link to="/reports" className="px-3 py-2 text-white hover:bg-[#611f69] rounded text-sm font-medium">Reports</Link>
                 {(user?.role === "admin" || user?.role === "superadmin") && (
                   <Link to="/admin" className="px-3 py-2 text-white hover:bg-[#611f69] rounded text-sm font-medium">Admin</Link>
                 )}
@@ -51,8 +52,16 @@ export default function AppLayout() {
             </div>
             <div className="flex items-center space-x-3">
               <Link to="/profile" className="flex items-center space-x-2 px-3 py-1 hover:bg-[#611f69] rounded">
-                <div className="w-7 h-7 bg-[#e01e5a] rounded flex items-center justify-center text-white font-semibold text-sm">
-                  {user?.username?.[0]?.toUpperCase() || "U"}
+                <div className="w-7 h-7 bg-[#e01e5a] rounded flex items-center justify-center text-white font-semibold text-sm overflow-hidden">
+                  {user?.profile_picture_url ? (
+                    <img 
+                      src={user.profile_picture_url.startsWith('/') ? `http://127.0.0.1:8000${user.profile_picture_url}` : user.profile_picture_url} 
+                      alt={user.username} 
+                      className="w-full h-full object-cover" 
+                    />
+                  ) : (
+                    user?.username?.[0]?.toUpperCase() || "U"
+                  )}
                 </div>
                 <span className="text-white text-sm font-medium hidden md:block">{user?.username || "User"}</span>
               </Link>

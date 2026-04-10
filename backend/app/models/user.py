@@ -20,6 +20,7 @@ class User(Base):
     bio = Column(String(255), nullable=True)
     role = Column(String(20), nullable=False, default="user")
     status = Column(String(20), nullable=False, default="offline")
+    is_verified = Column(Boolean, nullable=False, default=False)
     is_online = Column(Boolean, nullable=False, default=False)
     last_seen = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)

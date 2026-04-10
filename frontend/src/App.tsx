@@ -10,14 +10,17 @@ import DashboardPage from "./pages/DashboardPage";
 import GroupsPage from "./pages/GroupsPage";
 import LoginPage from "./pages/LoginPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import OTPVerificationPage from "./pages/OTPVerificationPage";
 import ProfilePage from "./pages/ProfilePage";
 import RegisterPage from "./pages/RegisterPage";
+import ReportsPage from "./pages/ReportsPage";
 
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/verify-otp" element={<OTPVerificationPage />} />
       <Route path="/api-docs" element={<ApiDocsPage />} />
       <Route
         path="/"
@@ -33,6 +36,7 @@ export default function App() {
         <Route path="chat" element={<ChatPage />} />
         <Route path="contacts" element={<ContactsPage />} />
         <Route path="groups" element={<GroupsPage />} />
+        <Route path="reports" element={<ReportsPage />} />
         <Route path="admin" element={<AdminPage />} />
       </Route>
       <Route path="/home" element={<Navigate to="/" replace />} />

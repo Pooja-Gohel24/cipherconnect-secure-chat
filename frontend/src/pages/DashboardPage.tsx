@@ -18,14 +18,34 @@ export default function DashboardPage() {
   }, [authLoading, user]);
 
   const loadData = async () => {
-    const token = localStorage.getItem('cipherconnect_access_token');
-    if (!token) return;
-    
     try {
-      const convRes = await chatService.listConversations(token);
-      setStats(prev => ({ ...prev, conversations: convRes.data.length }));
+      // Load conversations
+      const convRes = await chatService.listConversations();
+      console.log('Dashboard conversations:', convRes.data);
+      
+      // Count total messages from all conversations
+      let totalMessages = 0;
+      for (const conv of convRes.data) {
+        try {
+          const messagesRes = await chatService.listMessages(conv.id);
+          totalMessages += messagesRes.data.length;
+        } catch (err) {
+          console.error('Error loading messages for conversation:', conv.id, err);
+        }
+      }
+      
+      // Load contacts
+      const { userService } = await import('../services/userService');
+      const contactsRes = await userService.listContacts();
+      console.log('Dashboard contacts:', contactsRes.data);
+      
+      setStats({
+        conversations: convRes.data.length,
+        messages: totalMessages,
+        contacts: contactsRes.data.length
+      });
     } catch (err) {
-      console.error(err);
+      console.error('Error loading dashboard data:', err);
     } finally {
       setLoading(false);
     }

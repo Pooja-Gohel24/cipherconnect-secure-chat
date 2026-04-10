@@ -26,7 +26,7 @@ export default function RegisterPage() {
         encrypted_private_key: 'temp_encrypted_key',
       });
       
-      navigate('/login');
+      navigate('/verify-otp', { state: { email } });
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Registration failed. Please try again.');
     } finally {

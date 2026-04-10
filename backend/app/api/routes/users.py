@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, require_roles
 from app.database.database import get_db
 from app.models import Contact, User
+from app.models.report import Report
 from app.schemas.contact import ContactCreateRequest, ContactOut
+from app.schemas.report import ReportCreateRequest, ReportOut
 from app.schemas.user import UserOut, UserUpdateRequest
 
 router = APIRouter()
@@ -73,12 +75,22 @@ def list_contact_requests(
         Contact.status == "pending"
     ).all()
     
+    result_requests = []
     for req in requests:
         requester = db.query(User).filter(User.id == req.user_id).first()
         if requester:
-            req.contact_user = requester
+            # Create a virtual contact object for consistent output
+            request_contact = Contact(
+                id=req.id,
+                user_id=req.user_id,
+                contact_user_id=req.contact_user_id,
+                status=req.status,
+                created_at=req.created_at
+            )
+            request_contact.contact_user = requester
+            result_requests.append(request_contact)
     
-    return requests
+    return result_requests
 
 
 @router.get("/contacts", response_model=list[ContactOut])
@@ -86,17 +98,50 @@ def list_contacts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List all contacts for the current user - shows all contacts regardless of status"""
-    contacts = db.query(Contact).filter(
-        Contact.user_id == current_user.id
+    """List all accepted contacts for the current user"""
+    # Get contacts where current user is the requester
+    contacts_as_requester = db.query(Contact).filter(
+        Contact.user_id == current_user.id,
+        Contact.status == "accepted"
     ).all()
     
-    for contact in contacts:
+    # Get contacts where current user is the recipient (but we need to flip the relationship)
+    contacts_as_recipient = db.query(Contact).filter(
+        Contact.contact_user_id == current_user.id,
+        Contact.status == "accepted"
+    ).all()
+    
+    # Process contacts where user is requester
+    result_contacts = []
+    for contact in contacts_as_requester:
         contact_user = db.query(User).filter(User.id == contact.contact_user_id).first()
         if contact_user:
             contact.contact_user = contact_user
+            result_contacts.append(contact)
     
-    return contacts
+    # Process contacts where user is recipient (flip the relationship for consistent output)
+    for contact in contacts_as_recipient:
+        requester = db.query(User).filter(User.id == contact.user_id).first()
+        if requester:
+            # Create a virtual contact object with flipped relationship
+            flipped_contact = Contact(
+                id=contact.id,
+                user_id=current_user.id,
+                contact_user_id=contact.user_id,
+                status=contact.status,
+                created_at=contact.created_at
+            )
+            flipped_contact.contact_user = requester
+            
+            # Check if we already have this contact from the other direction
+            already_exists = any(
+                c.contact_user_id == contact.user_id for c in result_contacts
+            )
+            
+            if not already_exists:
+                result_contacts.append(flipped_contact)
+    
+    return result_contacts
 
 
 @router.post("/contacts", response_model=ContactOut)
@@ -108,16 +153,24 @@ def create_contact(
     if payload.contact_user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot add yourself as contact")
 
-    existing = db.query(Contact).filter(
-        Contact.user_id == current_user.id,
-        Contact.contact_user_id == payload.contact_user_id,
+    # Check if any relationship already exists (in either direction)
+    existing_request = db.query(Contact).filter(
+        ((Contact.user_id == current_user.id) & (Contact.contact_user_id == payload.contact_user_id)) |
+        ((Contact.user_id == payload.contact_user_id) & (Contact.contact_user_id == current_user.id))
     ).first()
-    if existing:
-        contact_user = db.query(User).filter(User.id == existing.contact_user_id).first()
-        if contact_user:
-            existing.contact_user = contact_user
-        return existing
+    
+    if existing_request:
+        # If request exists, return it with proper contact_user data
+        if existing_request.user_id == current_user.id:
+            contact_user = db.query(User).filter(User.id == existing_request.contact_user_id).first()
+            if contact_user:
+                existing_request.contact_user = contact_user
+            return existing_request
+        else:
+            # If the other user sent us a request, we can't send another one
+            raise HTTPException(status_code=400, detail="Contact request already exists")
 
+    # Create new contact request
     contact = Contact(
         user_id=current_user.id, 
         contact_user_id=payload.contact_user_id, 
@@ -150,7 +203,28 @@ def accept_contact_request(
     if not contact:
         raise HTTPException(status_code=404, detail="Contact request not found")
     
+    # Update the original request status
     contact.status = "accepted"
+    
+    # Create reciprocal contact relationship
+    # Check if reciprocal contact already exists
+    reciprocal_contact = db.query(Contact).filter(
+        Contact.user_id == current_user.id,
+        Contact.contact_user_id == contact.user_id
+    ).first()
+    
+    if not reciprocal_contact:
+        # Create reciprocal contact
+        reciprocal_contact = Contact(
+            user_id=current_user.id,
+            contact_user_id=contact.user_id,
+            status="accepted"
+        )
+        db.add(reciprocal_contact)
+    else:
+        # Update existing reciprocal contact status
+        reciprocal_contact.status = "accepted"
+    
     db.commit()
     db.refresh(contact)
     
@@ -181,6 +255,73 @@ def reject_contact_request(
     db.commit()
     
     return {"message": "Contact request rejected"}
+
+
+@router.delete("/contacts/{contact_id}")
+def remove_contact(
+    contact_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Remove a contact (delete the relationship)"""
+    # Find the contact relationship where current user is involved
+    contact = db.query(Contact).filter(
+        Contact.id == contact_id,
+        ((Contact.user_id == current_user.id) | (Contact.contact_user_id == current_user.id)),
+        Contact.status == "accepted"
+    ).first()
+    
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    
+    # Find and delete the reciprocal contact relationship
+    if contact.user_id == current_user.id:
+        # Current user is the requester, find reciprocal
+        reciprocal = db.query(Contact).filter(
+            Contact.user_id == contact.contact_user_id,
+            Contact.contact_user_id == current_user.id
+        ).first()
+    else:
+        # Current user is the recipient, find reciprocal
+        reciprocal = db.query(Contact).filter(
+            Contact.user_id == contact.user_id,
+            Contact.contact_user_id == current_user.id
+        ).first()
+    
+    # Delete both relationships
+    db.delete(contact)
+    if reciprocal:
+        db.delete(reciprocal)
+    
+    db.commit()
+    
+    return {"message": "Contact removed successfully"}
+
+
+@router.get("/me/reports", response_model=list[ReportOut])
+def get_my_reports(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return db.query(Report).filter(Report.reported_by == current_user.id).order_by(Report.created_at.desc()).all()
+
+
+@router.post("/me/reports", response_model=ReportOut)
+def submit_report(
+    payload: ReportCreateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    report = Report(
+        reported_by=current_user.id,
+        conversation_id=payload.conversation_id,
+        reported_user=payload.reported_user,
+        reason=payload.reason,
+    )
+    db.add(report)
+    db.commit()
+    db.refresh(report)
+    return report
 
 
 @router.get("/{user_id}", response_model=UserOut)

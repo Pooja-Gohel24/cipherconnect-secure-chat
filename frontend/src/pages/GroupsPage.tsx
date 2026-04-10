@@ -1,7 +1,19 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { groupService } from '../services/groupService';
 import { chatService } from '../services/chatService';
 import { userService } from '../services/userService';
+
+interface Contact {
+  id: string;
+  contact_user: {
+    id: string;
+    username: string;
+    email: string;
+    profile_picture_url?: string;
+  };
+  status: string;
+}
 
 interface Group {
   id: string;
@@ -18,49 +30,68 @@ interface User {
 
 export default function GroupsPage() {
   const [groups, setGroups] = useState<Group[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-  const token = localStorage.getItem('cipherconnect_access_token') || '';
+  const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadGroups();
-    loadUsers();
+    loadContacts();
   }, []);
 
   const loadGroups = async () => {
     try {
-      const res = await chatService.listConversations(token);
+      const res = await chatService.listConversations();
       setGroups(res.data.filter((c: Group) => c.type === 'group'));
     } catch (err) {
       console.error(err);
     }
   };
 
-  const loadUsers = async () => {
+  const loadContacts = async () => {
     try {
-      const res = await userService.listUsers(token);
-      setUsers(res.data);
+      const res = await userService.listContacts();
+      // All contacts returned are already accepted due to backend filtering
+      setContacts(res.data);
     } catch (err) {
       console.error(err);
     }
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    // Format date in India timezone
+    const formatter = new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+    return formatter.format(date);
+  };
+
   const createGroup = async () => {
     if (!name.trim()) return;
     try {
-      await groupService.createGroup({
+      const res = await groupService.createGroup({
         type: 'group',
         name,
         description,
         participant_ids: selectedUsers,
-      }, token);
+      });
+      
+      // Navigate to the created group chat
+      navigate(`/chat?conversation=${res.data.id}`);
+      
       setShowCreate(false);
       setName('');
       setDescription('');
       setSelectedUsers([]);
+      setSearchTerm('');
       loadGroups();
     } catch (err) {
       console.error(err);
@@ -72,6 +103,15 @@ export default function GroupsPage() {
       prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
     );
   };
+
+  const openGroup = (groupId: string) => {
+    navigate(`/chat?conversation=${groupId}`);
+  };
+
+  const filteredContacts = contacts.filter(contact =>
+    contact.contact_user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    contact.contact_user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -100,14 +140,47 @@ export default function GroupsPage() {
                   <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Enter group description..." className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Add Members</label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 border border-gray-300 rounded-lg">
-                    {users.map(user => (
-                      <label key={user.id} className="flex items-center space-x-2 p-2 hover:bg-white rounded cursor-pointer">
-                        <input type="checkbox" checked={selectedUsers.includes(user.id)} onChange={() => toggleUser(user.id)} className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" />
-                        <span className="text-sm text-gray-700">{user.username}</span>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Add Members from Contacts</label>
+                  <div className="mb-3">
+                    <input
+                      type="text"
+                      placeholder="Search contacts..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 border border-gray-300 rounded-lg">
+                    {filteredContacts.map(contact => (
+                      <label key={contact.contact_user.id} className="flex items-center space-x-3 p-2 hover:bg-white rounded cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedUsers.includes(contact.contact_user.id)} 
+                          onChange={() => toggleUser(contact.contact_user.id)} 
+                          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" 
+                        />
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-xs overflow-hidden">
+                          {contact.contact_user.profile_picture_url ? (
+                            <img 
+                              src={contact.contact_user.profile_picture_url.startsWith('/') ? `http://127.0.0.1:8000${contact.contact_user.profile_picture_url}` : contact.contact_user.profile_picture_url} 
+                              alt={contact.contact_user.username} 
+                              className="w-full h-full object-cover" 
+                            />
+                          ) : (
+                            contact.contact_user.username[0].toUpperCase()
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-700 truncate">{contact.contact_user.username}</p>
+                          <p className="text-xs text-gray-500 truncate">{contact.contact_user.email}</p>
+                        </div>
                       </label>
                     ))}
+                    {filteredContacts.length === 0 && (
+                      <p className="text-sm text-gray-500 text-center py-4 col-span-full">
+                        {searchTerm ? 'No contacts found matching your search.' : 'No contacts available. Add contacts first to create groups.'}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex space-x-3">
@@ -133,8 +206,11 @@ export default function GroupsPage() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate">{group.name}</h3>
                     <p className="text-sm text-gray-500 mb-3 line-clamp-2">{group.description || 'No description'}</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-400">{new Date(group.created_at).toLocaleDateString()}</span>
-                      <button className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+                      <span className="text-xs text-gray-400">{formatDate(group.created_at)}</span>
+                      <button 
+                        onClick={() => openGroup(group.id)}
+                        className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+                      >
                         Open
                       </button>
                     </div>

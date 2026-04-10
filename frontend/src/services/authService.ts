@@ -18,6 +18,8 @@ export interface LoginData {
 
 export const authService = {
   register: (data: RegisterData) => api.post('/api/auth/register', data),
+  verifyOtp: (email: string, otp: string) => api.post(`/api/auth/verify-otp?email=${email}&otp=${otp}`),
+  resendOtp: (email: string) => api.post(`/api/auth/resend-otp?email=${email}`),
   login: (data: LoginData) => api.post('/api/auth/login', data),
   refresh: (refresh_token: string) => api.post('/api/auth/refresh', { refresh_token }),
   logout: (refresh_token: string) => api.post('/api/auth/logout', { refresh_token }),

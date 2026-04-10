@@ -15,6 +15,10 @@ export interface MessageCreate {
   reply_to?: string;
 }
 
+export interface MessageDelete {
+  delete_for_everyone: boolean;
+}
+
 export const chatService = {
   createConversation: (data: ConversationCreate) => 
     api.post('/api/chat/conversations', data),
@@ -25,6 +29,20 @@ export const chatService = {
   sendMessage: (data: MessageCreate) => 
     api.post('/api/chat/messages', data),
   
+  sendMessageWithAttachments: (formData: FormData) => 
+    api.post('/api/chat/messages/with-attachments', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  
   listMessages: (conversationId: string) => 
     api.get(`/api/chat/conversations/${conversationId}/messages`),
+  
+  deleteMessage: (messageId: string, data: MessageDelete) => 
+    api.delete(`/api/chat/messages/${messageId}`, { data }),
+  
+  deleteConversation: (conversationId: string) =>
+    api.delete(`/api/chat/conversations/${conversationId}`),
+
+  toggleReaction: (messageId: string, emoji: string) =>
+    api.post(`/api/chat/messages/${messageId}/reactions`, { emoji }),
 };

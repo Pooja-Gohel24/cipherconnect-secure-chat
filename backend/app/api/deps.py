@@ -44,6 +44,8 @@ def get_current_user(
 
 def require_roles(*allowed_roles: str):
     def dependency(current_user: User = Depends(get_current_user)) -> User:
+        if "user" in allowed_roles and current_user.role in ("user", "admin", "superadmin"):
+            return current_user
         if current_user.role not in allowed_roles:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
         return current_user
